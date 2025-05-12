@@ -120,3 +120,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .custom-flex-col {
+    @apply flex flex-col items-center justify-center;
+
+    & > * {
+      @apply w-full;
+    }
+  }
+
+  .custom-flex-center {
+    @apply flex items-center justify-center;
+  }
+}

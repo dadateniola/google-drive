@@ -1,103 +1,152 @@
+"use client";
+
+import React, { useState } from "react";
+
+// Images
+import { Loader } from "lucide-react";
+
+// Imports
+import { z } from "zod";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { listFiles } from "@/lib/google";
 import Image from "next/image";
+import { Label } from "@/components/ui/label";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+// Schema
+const folderLinkSchema = z
+  .string()
+  .nonempty("Please enter a folder link")
+  .regex(
+    /^https:\/\/drive\.google\.com\/drive\/folders\/([\w-]+)(\?.*)?$/,
+    "Please enter a valid Google Drive folder link"
   );
-}
+
+const Home = () => {
+  // States
+  const [folderLink, setFolderLink] = useState("");
+  const [images, setImages] = useState<string[]>([]);
+  const [isValidated, setIsValidated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Functions
+  const fetchImages = async (folderId: string) => {
+    const files = await listFiles(folderId);
+    console.log(files);
+
+    if (!files) {
+      setSuccess(null);
+      setIsValidated(false);
+      setError("Failed to fetch images from the folder.");
+      return;
+    }
+
+    const imageUrls = files
+      .filter((file) => file.mimeType?.startsWith("image/"))
+      .map((file) => `https://drive.google.com/uc?id=${file.id}`);
+
+    setSuccess("Images fetched successfully!");
+    setImages(imageUrls);
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); // Prevent form submission
+
+    const result = folderLinkSchema.safeParse(folderLink.trim());
+
+    if (!result.success) {
+      setError(result.error.issues[0].message);
+      return;
+    }
+
+    const match = folderLink.match(
+      /^https:\/\/drive\.google\.com\/drive\/folders\/([\w-]+)/
+    );
+
+    const folderId = match?.[1];
+
+    if (!folderId) {
+      setError("Could not extract folder ID from link.");
+      return;
+    }
+
+    // All good — folder ID extracted
+    setIsValidated(true);
+    setError(null);
+
+    // Fetch images
+    setSuccess(`Fetching images from folder: ${folderId}`);
+    setTimeout(() => {
+      fetchImages(folderId);
+    }, 1000);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFolderLink(e.target.value);
+    setError(null); // Clear error when input changes
+  };
+
+  return images.length ? (
+    <main className="w-full h-full p-5 sm:p-10 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {images.map((image, index) => (
+        <div
+          key={index}
+          className="relative w-full aspect-square group overflow-hidden"
+        >
+          <Image
+            src={image}
+            alt="Image from Google Drive"
+            fill
+            className="object-cover bg-accent transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
+      ))}
+    </main>
+  ) : (
+    <main className="w-full h-screen custom-flex-center">
+      <div className="w-[min(400px,95vw)] custom-flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex items-end gap-4">
+          <div className="flex-1 custom-flex-col gap-3">
+            <Label>Public Drive Folder URL</Label>
+            <Input
+              type="text"
+              placeholder="https://drive.google.com/drive/folders/1a2b3c4d5e6f7g8h9i0j"
+              value={folderLink}
+              onChange={handleInputChange}
+              className="flex-1 py-2"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={!!error || isValidated}
+            className="cursor-pointer"
+          >
+            {isValidated ? (
+              <>
+                <Loader className="animate-spin" />
+                Loading..
+              </>
+            ) : (
+              "Get images"
+            )}
+          </Button>
+        </form>
+        <div className="relative">
+          {error && (
+            <p className="absolute top-0 left-0 w-full px-1 text-red-400 text-sm font-normal">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="absolute top-0 left-0 w-full px-1 text-green-400 text-sm font-normal">
+              {success}
+            </p>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+};
+
+export default Home;
