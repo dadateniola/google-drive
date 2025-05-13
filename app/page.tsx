@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React, { useState } from "react";
 
 // Images
@@ -8,10 +9,9 @@ import { Loader } from "lucide-react";
 // Imports
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { listFiles } from "@/lib/google";
-import Image from "next/image";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { getAllFilesRecursive } from "@/lib/google";
 
 // Schema
 const folderLinkSchema = z
@@ -32,8 +32,7 @@ const Home = () => {
 
   // Functions
   const fetchImages = async (folderId: string) => {
-    const files = await listFiles(folderId);
-    console.log(files);
+    const files = await getAllFilesRecursive(folderId);
 
     if (!files) {
       setSuccess(null);
@@ -98,6 +97,7 @@ const Home = () => {
             src={image}
             alt="Image from Google Drive"
             fill
+            sizes="(max-width: 640px) 100vw, 50vw"
             className="object-cover bg-accent transition-transform duration-300 group-hover:scale-105"
           />
         </div>
@@ -108,9 +108,10 @@ const Home = () => {
       <div className="w-[min(400px,95vw)] custom-flex-col gap-4">
         <form onSubmit={handleSubmit} className="flex items-end gap-4">
           <div className="flex-1 custom-flex-col gap-3">
-            <Label>Public Drive Folder URL</Label>
+            <Label htmlFor="folder-link">Public Drive Folder URL</Label>
             <Input
               type="text"
+              id="folder-link"
               placeholder="https://drive.google.com/drive/folders/1a2b3c4d5e6f7g8h9i0j"
               value={folderLink}
               onChange={handleInputChange}
